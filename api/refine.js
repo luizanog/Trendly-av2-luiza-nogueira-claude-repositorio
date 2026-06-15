@@ -1,6 +1,6 @@
-// api/refine.js — Função serverless da Vercel
+// api/refine.js — Função serverless da Vercel (Google Gemini · tier GRATUITO)
 // Recebe { title, category, desc } e devolve { text } com a descrição refinada pela IA.
-// Requer a variável de ambiente ANTHROPIC_API_KEY configurada na Vercel.
+// Requer a variável de ambiente GEMINI_API_KEY (pegue grátis em https://aistudio.google.com/apikey).
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     res.status(500).json({ error: "missing_api_key" });
     return;
@@ -36,17 +36,16 @@ export default async function handler(req, res) {
       `Ideia básica do autor: ${desc}\n\n` +
       "Responda apenas com a descrição melhorada, sem comentários.";
 
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const url =
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+      encodeURIComponent(apiKey);
+
+    const r = await fetch(url, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-3-5-haiku-20241022",
-        max_tokens: 300,
-        messages: [{ role: "user", content: prompt }],
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 200 },
       }),
     });
 
@@ -58,7 +57,14 @@ export default async function handler(req, res) {
 
     const data = await r.json();
     const text =
-      (data && data.content && data.content[0] && data.content[0].text) || "";
+      (data &&
+        data.candidates &&
+        data.candidates[0] &&
+        data.candidates[0].content &&
+        data.candidates[0].content.parts &&
+        data.candidates[0].content.parts[0] &&
+        data.candidates[0].content.parts[0].text) ||
+      "";
     res.status(200).json({ text: text.trim() });
   } catch (e) {
     res.status(500).json({ error: "failed", detail: String(e).slice(0, 200) });
