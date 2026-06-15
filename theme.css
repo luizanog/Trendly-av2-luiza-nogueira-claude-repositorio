@@ -1,0 +1,153 @@
+/* ============================================================
+   Trendly — design-trends discovery platform
+   Theme tokens. Two directions (a=Aurora, b=Canvas) × two modes.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&family=Space+Mono:wght@400;700&display=swap');
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+:root {
+  /* hue primitives (shared) */
+  --purple:    oklch(55% 0.205 295);
+  --purple-600:oklch(49% 0.215 294);
+  --lavender:  oklch(72% 0.13 296);
+  --blue:      oklch(66% 0.15 252);
+  --cyan:      oklch(82% 0.10 212);
+  --coral:     oklch(72% 0.16 32);
+  --peach:     oklch(85% 0.085 62);
+  --yellow:    oklch(88% 0.12 92);
+
+  --radius:    22px;
+  --radius-sm: 14px;
+  --radius-pill: 999px;
+
+  --font: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --mono: 'Space Mono', ui-monospace, monospace;
+
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --speed: .42s;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--ink);
+  background: var(--page-bg);
+  background-attachment: fixed;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background .5s var(--ease), color .3s var(--ease);
+}
+
+/* ---------- DIRECTION A · AURORA · LIGHT ---------- */
+[data-dir="a"][data-theme="light"] {
+  --page-bg:
+    radial-gradient(900px 620px at 10% -8%, oklch(83% 0.10 250 / .60), transparent 60%),
+    radial-gradient(820px 600px at 102% -2%, oklch(80% 0.13 302 / .55), transparent 56%),
+    radial-gradient(760px 720px at 88% 104%, oklch(86% 0.09 205 / .42), transparent 60%),
+    radial-gradient(640px 540px at -4% 102%, oklch(86% 0.10 332 / .40), transparent 60%),
+    oklch(98% 0.012 286);
+  --ink:        oklch(27% 0.035 292);
+  --ink-soft:   oklch(43% 0.03 292);
+  --muted:      oklch(58% 0.025 292);
+  --line:       oklch(88% 0.02 292 / .8);
+  --card:       rgba(255,255,255,.66);
+  --card-2:     rgba(255,255,255,.82);
+  --card-border:rgba(255,255,255,.75);
+  --card-shadow:0 18px 40px -22px rgba(78,58,150,.45), 0 2px 8px -4px rgba(78,58,150,.18);
+  --nav:        rgba(255,255,255,.62);
+  --nav-border: rgba(255,255,255,.7);
+  --field:      rgba(255,255,255,.78);
+  --field-border: rgba(255,255,255,.9);
+  --chip:       rgba(255,255,255,.6);
+  --chip-ink:   var(--ink-soft);
+  --blur:       18px;
+  --on-accent:  #fff;
+}
+
+/* ---------- DIRECTION A · AURORA · DARK ---------- */
+[data-dir="a"][data-theme="dark"] {
+  --page-bg:
+    radial-gradient(900px 620px at 10% -8%, oklch(48% 0.16 262 / .55), transparent 60%),
+    radial-gradient(820px 600px at 102% -2%, oklch(46% 0.19 300 / .50), transparent 56%),
+    radial-gradient(760px 720px at 88% 104%, oklch(48% 0.13 205 / .38), transparent 60%),
+    radial-gradient(640px 540px at -4% 102%, oklch(50% 0.15 330 / .34), transparent 60%),
+    oklch(15.5% 0.03 286);
+  --ink:        oklch(95% 0.012 288);
+  --ink-soft:   oklch(82% 0.02 288);
+  --muted:      oklch(66% 0.025 288);
+  --line:       oklch(100% 0 0 / .12);
+  --card:       rgba(255,255,255,.055);
+  --card-2:     rgba(255,255,255,.085);
+  --card-border:rgba(255,255,255,.10);
+  --card-shadow:0 22px 48px -26px rgba(0,0,0,.7), 0 2px 8px -4px rgba(0,0,0,.4);
+  --nav:        rgba(22,18,42,.55);
+  --nav-border: rgba(255,255,255,.10);
+  --field:      rgba(255,255,255,.07);
+  --field-border: rgba(255,255,255,.13);
+  --chip:       rgba(255,255,255,.08);
+  --chip-ink:   var(--ink-soft);
+  --blur:       20px;
+  --on-accent:  #fff;
+}
+
+/* ---------- DIRECTION B · CANVAS · LIGHT ---------- */
+[data-dir="b"][data-theme="light"] {
+  --page-bg:
+    radial-gradient(1100px 520px at 50% -22%, oklch(92% 0.055 292 / .7), transparent 72%),
+    oklch(97% 0.006 286);
+  --ink:        oklch(24% 0.03 290);
+  --ink-soft:   oklch(42% 0.025 290);
+  --muted:      oklch(58% 0.02 290);
+  --line:       oklch(90% 0.012 290);
+  --card:       #ffffff;
+  --card-2:     #ffffff;
+  --card-border:oklch(91% 0.012 290);
+  --card-shadow:0 6px 18px -10px rgba(46,34,92,.16), 0 1px 2px rgba(46,34,92,.06);
+  --nav:        rgba(255,255,255,.85);
+  --nav-border: oklch(91% 0.012 290);
+  --field:      #ffffff;
+  --field-border: oklch(89% 0.014 290);
+  --chip:       oklch(96% 0.012 290);
+  --chip-ink:   var(--ink-soft);
+  --blur:       0px;
+  --on-accent:  #fff;
+}
+
+/* ---------- DIRECTION B · CANVAS · DARK ---------- */
+[data-dir="b"][data-theme="dark"] {
+  --page-bg:
+    radial-gradient(1100px 520px at 50% -22%, oklch(40% 0.07 292 / .45), transparent 72%),
+    oklch(16% 0.018 288);
+  --ink:        oklch(95% 0.01 288);
+  --ink-soft:   oklch(80% 0.018 288);
+  --muted:      oklch(63% 0.02 288);
+  --line:       oklch(100% 0 0 / .10);
+  --card:       oklch(21% 0.022 288);
+  --card-2:     oklch(24% 0.024 288);
+  --card-border:oklch(100% 0 0 / .08);
+  --card-shadow:0 10px 26px -16px rgba(0,0,0,.6);
+  --nav:        oklch(19% 0.02 288 / .9);
+  --nav-border: oklch(100% 0 0 / .09);
+  --field:      oklch(24% 0.022 288);
+  --field-border: oklch(100% 0 0 / .12);
+  --chip:       oklch(27% 0.024 288);
+  --chip-ink:   var(--ink-soft);
+  --blur:       0px;
+  --on-accent:  #fff;
+}
+
+/* glass helper used by nav, cards, fields in dir A */
+.glass { backdrop-filter: blur(var(--blur)) saturate(1.4); -webkit-backdrop-filter: blur(var(--blur)) saturate(1.4); }
+
+::selection { background: oklch(72% 0.13 296 / .35); }
+
+/* scrollbar */
+*::-webkit-scrollbar { width: 11px; height: 11px; }
+*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; border: 3px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: padding-box; }
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea, select { font-family: inherit; }
+a { color: inherit; text-decoration: none; }
