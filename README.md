@@ -1,0 +1,1 @@
+# Trendly-av2-luiza-nogueira-claude-repositorio
