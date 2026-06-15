@@ -33,17 +33,18 @@ function AddTrendModal({ onClose, onCreate }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title: title.trim(), category, desc: base }),
         });
+        const data = await resp.json().catch(() => ({}));
         if (!resp.ok) {
-          if (resp.status === 404) { setAiNote("IA indisponível neste ambiente."); return; }
-          throw new Error("api");
+          if (resp.status === 404) { setAiNote("IA indisponível (função /api/refine não encontrada)."); return; }
+          setAiNote("Erro " + resp.status + ": " + (data.error || "?") + (data.detail ? " — " + data.detail : ""));
+          return;
         }
-        const data = await resp.json();
         out = data.text || "";
       }
       const clean = (out || "").trim().replace(/^["'\s]+|["'\s]+$/g, "").slice(0, 180);
       if (clean) { setAiPrev(base); setDesc(clean); setAiNote(""); }
       else setAiNote("Não consegui refinar. Tente de novo.");
-    } catch (e) { setAiNote("Não foi possível refinar agora."); }
+    } catch (e) { setAiNote("Falha de rede: " + ((e && e.message) || "desconhecida")); }
     finally { setAiBusy(false); }
   };
   const undoAi = () => { if (aiPrev != null) { setDesc(aiPrev); setAiPrev(null); } };
