@@ -1,6 +1,7 @@
-// api/refine.js — Função serverless da Vercel (Google Gemini · tier GRATUITO)
+// api/refine.js — Função serverless da Vercel (Groq · IA GRATUITA, sem cartão)
 // Recebe { title, category, desc } e devolve { text } com a descrição refinada pela IA.
-// Requer a variável de ambiente GEMINI_API_KEY (pegue grátis em https://aistudio.google.com/apikey).
+// Requer a variável de ambiente GROQ_API_KEY (pegue grátis em https://console.groq.com/keys).
+// Obs.: também aceita o nome GEMINI_API_KEY, caso você prefira só trocar o valor da variável que já existe.
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -8,7 +9,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     res.status(500).json({ error: "missing_api_key" });
     return;
@@ -36,16 +37,17 @@ export default async function handler(req, res) {
       `Ideia básica do autor: ${desc}\n\n` +
       "Responda apenas com a descrição melhorada, sem comentários.";
 
-    const url =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
-      encodeURIComponent(apiKey);
-
-    const r = await fetch(url, {
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer " + apiKey,
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 200 },
+        model: "llama-3.1-8b-instant",
+        temperature: 0.7,
+        max_tokens: 200,
+        messages: [{ role: "user", content: prompt }],
       }),
     });
 
@@ -58,12 +60,10 @@ export default async function handler(req, res) {
     const data = await r.json();
     const text =
       (data &&
-        data.candidates &&
-        data.candidates[0] &&
-        data.candidates[0].content &&
-        data.candidates[0].content.parts &&
-        data.candidates[0].content.parts[0] &&
-        data.candidates[0].content.parts[0].text) ||
+        data.choices &&
+        data.choices[0] &&
+        data.choices[0].message &&
+        data.choices[0].message.content) ||
       "";
     res.status(200).json({ text: text.trim() });
   } catch (e) {
