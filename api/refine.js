@@ -1,7 +1,8 @@
-// api/refine.js — Função serverless da Vercel (Groq · IA GRATUITA, sem cartão)
+// api/refine.js — Função serverless da Vercel (OpenRouter · modelos GRATUITOS, sem cartão)
 // Recebe { title, category, desc } e devolve { text } com a descrição refinada pela IA.
-// Requer a variável de ambiente GROQ_API_KEY (pegue grátis em https://console.groq.com/keys).
-// Obs.: também aceita o nome GEMINI_API_KEY, caso você prefira só trocar o valor da variável que já existe.
+// Requer a variável de ambiente OPENROUTER_API_KEY (pegue grátis em https://openrouter.ai/keys).
+// Obs.: também aceita os nomes GROQ_API_KEY ou GEMINI_API_KEY, caso prefira só trocar o
+// valor da variável que já existe na Vercel (não precisa renomear).
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -9,7 +10,10 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey =
+    process.env.OPENROUTER_API_KEY ||
+    process.env.GROQ_API_KEY ||
+    process.env.GEMINI_API_KEY;
   if (!apiKey) {
     res.status(500).json({ error: "missing_api_key" });
     return;
@@ -37,14 +41,18 @@ export default async function handler(req, res) {
       `Ideia básica do autor: ${desc}\n\n` +
       "Responda apenas com a descrição melhorada, sem comentários.";
 
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    // Modelo gratuito do OpenRouter (o sufixo ":free" indica sem custo).
+    const model = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
+
+    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "content-type": "application/json",
         authorization: "Bearer " + apiKey,
+        "X-Title": "Trendly",
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model,
         temperature: 0.7,
         max_tokens: 200,
         messages: [{ role: "user", content: prompt }],
