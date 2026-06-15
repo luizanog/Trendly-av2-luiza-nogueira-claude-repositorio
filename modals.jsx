@@ -19,11 +19,27 @@ function AddTrendModal({ onClose, onCreate }) {
   const refineDesc = async () => {
     const base = desc.trim();
     if (base.length < 4) { setAiNote("Escreva uma ideia básica primeiro ✦"); return; }
-    if (!(window.claude && window.claude.complete)) { setAiNote("IA indisponível neste ambiente."); return; }
     setAiNote(""); setAiBusy(true);
     try {
       const prompt = `Você é um editor especialista em design. Reescreva a descrição de uma tendência de design de forma clara, concisa e inspiradora, em português do Brasil. No máximo 2 frases curtas, até 175 caracteres no total. Não use aspas, emojis nem títulos. Mantenha o sentido da ideia original.\n\nTítulo: ${title.trim() || "(sem título)"}\nCategoria: ${category}\nIdeia básica do autor: ${base}\n\nResponda apenas com a descrição melhorada, sem comentários.`;
-      const out = await window.claude.complete(prompt);
+      let out = "";
+      if (window.claude && window.claude.complete) {
+        // Ambiente de preview (Claude embutido)
+        out = await window.claude.complete(prompt);
+      } else {
+        // Site publicado → chama a função serverless /api/refine
+        const resp = await fetch("/api/refine", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: title.trim(), category, desc: base }),
+        });
+        if (!resp.ok) {
+          if (resp.status === 404) { setAiNote("IA indisponível neste ambiente."); return; }
+          throw new Error("api");
+        }
+        const data = await resp.json();
+        out = data.text || "";
+      }
       const clean = (out || "").trim().replace(/^["'\s]+|["'\s]+$/g, "").slice(0, 180);
       if (clean) { setAiPrev(base); setDesc(clean); setAiNote(""); }
       else setAiNote("Não consegui refinar. Tente de novo.");
