@@ -1,7 +1,7 @@
 // api/refine.js — Função serverless da Vercel (OpenRouter · modelos GRATUITOS)
-// Tenta uma lista de modelos gratuitos e usa o primeiro que responder com texto.
+// Usa modelos "instruct" (sem raciocínio) e limpa qualquer rascunho que escape.
 // Requer a variável de ambiente OPENROUTER_API_KEY (chave sk-or-...).
-// Opcional: OPENROUTER_MODEL para forçar um modelo específico (vira o primeiro da fila).
+// Opcional: OPENROUTER_MODEL para forçar um modelo específico (entra na frente da fila).
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -18,6 +18,25 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Remove rascunho de modelos "pensadores" e deixa só a frase final.
+  function cleanText(raw) {
+    let t = (raw || "").toString();
+    t = t.replace(/<think>[\s\S]*?<\/think>/gi, " ");   // blocos <think>...</think>
+    t = t.replace(/[\s\S]*<\/think>/i, " ");            // <think> sem fechamento no início
+    t = t.replace(/^\s*(okay|ok|alright|let'?s|we need|first,|the user)\b[\s\S]*?\n\n/i, ""); // preâmbulo
+    t = t.replace(/^["'\s]+|["'\s]+$/g, "").trim();
+    return t;
+  }
+
+  // Heurística: parece rascunho/eco da instrução em vez da resposta?
+  function looksLikeReasoning(t) {
+    const s = t.toLowerCase();
+    return (
+      s.length > 230 ||
+      /\b(rewrite|rephrase|the user|brazilian portuguese|characters|sentences|constraints|let'?s tackle|we need to)\b/.test(s)
+    );
+  }
+
   try {
     const body =
       typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
@@ -31,24 +50,20 @@ export default async function handler(req, res) {
     }
 
     const prompt =
-      "Você é um editor especialista em design. Reescreva a descrição de uma tendência " +
-      "de design de forma clara, concisa e inspiradora, em português do Brasil. No máximo " +
-      "2 frases curtas, até 175 caracteres no total. Não use aspas, emojis nem títulos. " +
-      "Mantenha o sentido da ideia original.\n\n" +
-      `Título: ${title || "(sem título)"}\n` +
+      "Reescreva a descrição abaixo de forma clara, concisa e inspiradora, em português do Brasil. " +
+      "Responda em no máximo 2 frases curtas (até 175 caracteres no total), sem aspas, sem emojis e sem títulos. " +
+      "Responda SOMENTE com a descrição final, sem explicações.\n\n" +
       `Categoria: ${category || "(sem categoria)"}\n` +
-      `Ideia básica do autor: ${desc}\n\n` +
-      "Responda apenas com a descrição melhorada, sem comentários.";
+      `Descrição: ${desc}`;
 
-    // Fila de modelos gratuitos (instruct, sem "raciocínio" que volta vazio).
-    // O OPENROUTER_MODEL, se definido, entra na frente.
+    // Modelos gratuitos "instruct" (não fazem raciocínio). OPENROUTER_MODEL entra na frente.
     const models = [
       process.env.OPENROUTER_MODEL,
+      "google/gemini-2.0-flash-exp:free",
       "meta-llama/llama-3.3-70b-instruct:free",
+      "mistralai/mistral-small-3.2-24b-instruct:free",
       "meta-llama/llama-3.1-8b-instruct:free",
       "google/gemma-2-9b-it:free",
-      "mistralai/mistral-nemo:free",
-      "openrouter/free",
     ].filter(Boolean);
 
     let lastDetail = "";
@@ -63,26 +78,29 @@ export default async function handler(req, res) {
           },
           body: JSON.stringify({
             model,
-            temperature: 0.7,
-            max_tokens: 220,
-            messages: [{ role: "user", content: prompt }],
+            temperature: 0.6,
+            max_tokens: 160,
+            reasoning: { exclude: true },
+            messages: [
+              { role: "system", content: "Você é um editor de design objetivo. Responde apenas com o texto final pedido, em português do Brasil, sem explicar seu raciocínio." },
+              { role: "user", content: prompt },
+            ],
           }),
         });
 
         if (!r.ok) {
-          lastDetail = "(" + model + ") HTTP " + r.status + " " + (await r.text()).slice(0, 160);
-          continue; // tenta o próximo modelo
+          lastDetail = "(" + model + ") HTTP " + r.status + " " + (await r.text()).slice(0, 140);
+          continue;
         }
 
         const data = await r.json();
         const choice = data && data.choices && data.choices[0] && data.choices[0].message;
-        // Usa SÓ a resposta final (content). Ignora "reasoning" (rascunho do modelo).
-        const text = ((choice && choice.content) || "").trim();
-        if (text) {
+        const text = cleanText(choice && choice.content);
+        if (text && !looksLikeReasoning(text)) {
           res.status(200).json({ text: text });
           return;
         }
-        lastDetail = "(" + model + ") resposta vazia";
+        lastDetail = "(" + model + ") sem resposta limpa";
       } catch (inner) {
         lastDetail = "(" + model + ") " + String(inner).slice(0, 120);
       }
