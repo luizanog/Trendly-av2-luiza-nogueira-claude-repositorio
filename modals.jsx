@@ -2,7 +2,7 @@
 const { useState: useS2, useRef: useR2, useEffect: useE2 } = React;
 
 /* ---------- add a trend ---------- */
-function AddTrendModal({ onClose, onCreate }) {
+function AddTrendModal({ onClose, onCreate, cloud }) {
   const [title, setTitle] = useS2("");
   const [category, setCategory] = useS2(window.CATEGORIES[0]);
   const [desc, setDesc] = useS2("");
@@ -11,6 +11,7 @@ function AddTrendModal({ onClose, onCreate }) {
   const [cover, setCover] = useS2(0);
   const [drag, setDrag] = useS2(false);
   const [busy, setBusy] = useS2(false);
+  const [publishing, setPublishing] = useS2(false);
   const [aiBusy, setAiBusy] = useS2(false);
   const [aiPrev, setAiPrev] = useS2(null);
   const [aiNote, setAiNote] = useS2("");
@@ -33,18 +34,17 @@ function AddTrendModal({ onClose, onCreate }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title: title.trim(), category, desc: base }),
         });
-        const data = await resp.json().catch(() => ({}));
         if (!resp.ok) {
-          if (resp.status === 404) { setAiNote("IA indisponível (função /api/refine não encontrada)."); return; }
-          setAiNote("Erro " + resp.status + ": " + (data.error || "?") + (data.detail ? " — " + data.detail : ""));
-          return;
+          if (resp.status === 404) { setAiNote("IA indisponível neste ambiente."); return; }
+          throw new Error("api");
         }
+        const data = await resp.json();
         out = data.text || "";
       }
       const clean = (out || "").trim().replace(/^["'\s]+|["'\s]+$/g, "").slice(0, 180);
       if (clean) { setAiPrev(base); setDesc(clean); setAiNote(""); }
       else setAiNote("Não consegui refinar. Tente de novo.");
-    } catch (e) { setAiNote("Falha de rede: " + ((e && e.message) || "desconhecida")); }
+    } catch (e) { setAiNote("Não foi possível refinar agora."); }
     finally { setAiBusy(false); }
   };
   const undoAi = () => { if (aiPrev != null) { setDesc(aiPrev); setAiPrev(null); } };
@@ -56,14 +56,15 @@ function AddTrendModal({ onClose, onCreate }) {
   };
 
   const valid = title.trim().length > 1 && desc.trim().length > 1;
-  const submit = () => {
-    if (!valid) return;
-    onCreate({
-      id: "t" + Date.now().toString(36),
+  const submit = async () => {
+    if (!valid || publishing) return;
+    setPublishing(true);
+    const ok = await onCreate({
       title: title.trim(), category, desc: desc.trim(),
       briefing: briefing.trim() || "Sem briefing de aplicação ainda — adicione orientações de uso.",
-      image, cover, author: "Você", saves: 0, created: Date.now(),
+      image, cover,
     });
+    if (!ok) setPublishing(false); // em caso de sucesso o modal fecha sozinho
   };
 
   return (
@@ -150,10 +151,12 @@ function AddTrendModal({ onClose, onCreate }) {
         </div>
 
         <footer className="modal__foot">
-          <span className="mono modal__save-note">salvo automaticamente neste navegador</span>
+          <span className="mono modal__save-note">{cloud ? "publicado para todos · salvo na nuvem" : "salvo automaticamente neste navegador"}</span>
           <div className="modal__actions">
-            <button className="btn btn--ghost" onClick={onClose}>Cancelar</button>
-            <button className={"btn btn--primary " + (valid ? "" : "is-disabled")} onClick={submit}>Publicar tendência</button>
+            <button className="btn btn--ghost" onClick={onClose} disabled={publishing}>Cancelar</button>
+            <button className={"btn btn--primary " + (valid && !publishing ? "" : "is-disabled")} onClick={submit}>
+              {publishing ? "Publicando…" : "Publicar tendência"}
+            </button>
           </div>
         </footer>
       </div>
@@ -162,7 +165,7 @@ function AddTrendModal({ onClose, onCreate }) {
 }
 
 /* ---------- trend detail ---------- */
-function TrendDetail({ trend, saved, onClose, onToggleSave, onDelete }) {
+function TrendDetail({ trend, saved, canDelete = true, onClose, onToggleSave, onDelete }) {
   return (
     <div className="overlay" onMouseDown={onClose}>
       <div className="modal card detail" onMouseDown={(e) => e.stopPropagation()}>
@@ -192,7 +195,9 @@ function TrendDetail({ trend, saved, onClose, onToggleSave, onDelete }) {
                 {saved ? <IconHeartFill size={18} /> : <IconHeart size={18} />} {saved ? "Salva" : "Salvar"}
               </button>
               <button className="btn btn--ghost"><IconShare size={18} /> Compartilhar</button>
-              <button className="icon-btn icon-btn--danger" onClick={() => { onDelete(trend.id); onClose(); }} aria-label="Excluir"><IconTrash size={18} /></button>
+              {canDelete && (
+                <button className="icon-btn icon-btn--danger" onClick={() => { onDelete(trend.id); onClose(); }} aria-label="Excluir"><IconTrash size={18} /></button>
+              )}
             </div>
           </div>
         </div>
@@ -231,7 +236,7 @@ function EmptyState({ title, sub, action, onAction }) {
 function Dashboard({ trends, savedIds, onAdd, onOpen }) {
   const total = trends.length;
   const saved = savedIds.length;
-  const mine = trends.filter((t) => t.author === "Você").length;
+  const mine = trends.filter((t) => t.mine || t.author === "Você").length;
   const byCat = {};
   trends.forEach((t) => { byCat[t.category] = (byCat[t.category] || 0) + 1; });
   const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
