@@ -1,8 +1,7 @@
-// api/refine.js — Função serverless da Vercel (OpenRouter · modelos GRATUITOS, sem cartão)
-// Recebe { title, category, desc } e devolve { text } com a descrição refinada pela IA.
-// Requer a variável de ambiente OPENROUTER_API_KEY (pegue grátis em https://openrouter.ai/keys).
-// Obs.: também aceita os nomes GROQ_API_KEY ou GEMINI_API_KEY, caso prefira só trocar o
-// valor da variável que já existe na Vercel (não precisa renomear).
+// api/refine.js — Função serverless da Vercel (OpenRouter · modelos GRATUITOS)
+// Tenta uma lista de modelos gratuitos e usa o primeiro que responder com texto.
+// Requer a variável de ambiente OPENROUTER_API_KEY (chave sk-or-...).
+// Opcional: OPENROUTER_MODEL para forçar um modelo específico (vira o primeiro da fila).
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -41,39 +40,54 @@ export default async function handler(req, res) {
       `Ideia básica do autor: ${desc}\n\n` +
       "Responda apenas com a descrição melhorada, sem comentários.";
 
-    // Modelo gratuito do OpenRouter (o sufixo ":free" indica sem custo).
-    const model = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
+    // Fila de modelos gratuitos (instruct, sem "raciocínio" que volta vazio).
+    // O OPENROUTER_MODEL, se definido, entra na frente.
+    const models = [
+      process.env.OPENROUTER_MODEL,
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "meta-llama/llama-3.1-8b-instruct:free",
+      "google/gemma-2-9b-it:free",
+      "mistralai/mistral-nemo:free",
+      "openrouter/free",
+    ].filter(Boolean);
 
-    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: "Bearer " + apiKey,
-        "X-Title": "Trendly",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.7,
-        max_tokens: 200,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+    let lastDetail = "";
+    for (const model of models) {
+      try {
+        const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: "Bearer " + apiKey,
+            "X-Title": "Trendly",
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0.7,
+            max_tokens: 220,
+            messages: [{ role: "user", content: prompt }],
+          }),
+        });
 
-    if (!r.ok) {
-      const detail = await r.text();
-      res.status(502).json({ error: "ai_error", detail: detail.slice(0, 300) });
-      return;
+        if (!r.ok) {
+          lastDetail = "(" + model + ") HTTP " + r.status + " " + (await r.text()).slice(0, 160);
+          continue; // tenta o próximo modelo
+        }
+
+        const data = await r.json();
+        const choice = data && data.choices && data.choices[0] && data.choices[0].message;
+        const text = ((choice && (choice.content || choice.reasoning)) || "").trim();
+        if (text) {
+          res.status(200).json({ text: text });
+          return;
+        }
+        lastDetail = "(" + model + ") resposta vazia";
+      } catch (inner) {
+        lastDetail = "(" + model + ") " + String(inner).slice(0, 120);
+      }
     }
 
-    const data = await r.json();
-    const text =
-      (data &&
-        data.choices &&
-        data.choices[0] &&
-        data.choices[0].message &&
-        data.choices[0].message.content) ||
-      "";
-    res.status(200).json({ text: text.trim() });
+    res.status(502).json({ error: "ai_empty", detail: lastDetail.slice(0, 300) });
   } catch (e) {
     res.status(500).json({ error: "failed", detail: String(e).slice(0, 200) });
   }
