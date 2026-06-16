@@ -26,18 +26,26 @@ function Logo({ onClick }) {
 }
 
 /* ---------- top bar with AI search ---------- */
-function TopBar({ onMenu, query, setQuery, onSearch, filters, setFilters, onAdd, onHome, resultCount }) {
+function TopBar({ onMenu, query, setQuery, onSearch, filters, setFilters, onAdd, onHome, resultCount, user, onLogout }) {
   const [open, setOpen] = useState(false);          // filter dropdown
   const [listening, setListening] = useState(false);
   const [focus, setFocus] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);  // user menu
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
   const timerRef = useRef(null);
+  const userRef = useRef(null);
 
   const activeFilters = filters.cats.length + (filters.sort !== "recent" ? 1 : 0) + (filters.withImage ? 1 : 0);
 
+  const displayName = user ? ((user.user_metadata && user.user_metadata.full_name) || (user.email || "").split("@")[0]) : "Visitante";
+  const initials = (displayName || "?").trim().slice(0, 2).toUpperCase() || "VC";
+
   useEffect(() => {
-    const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    const onDoc = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+      if (userRef.current && !userRef.current.contains(e.target)) setUserOpen(false);
+    };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
@@ -98,7 +106,20 @@ function TopBar({ onMenu, query, setQuery, onSearch, filters, setFilters, onAdd,
         <button className="btn btn--primary add-top" onClick={onAdd}>
           <IconPlus size={18} /> <span className="add-top__txt">Adicionar</span>
         </button>
-        <button className="avatar" aria-label="Perfil">VC</button>
+        <div className="userwrap" ref={userRef}>
+          <button className="avatar" onClick={() => user && onLogout && setUserOpen((v) => !v)} aria-label="Perfil">{initials}</button>
+          {userOpen && user && (
+            <div className="usermenu glass" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="usermenu__head">
+                <span className="usermenu__name">{displayName}</span>
+                <span className="usermenu__mail">{user.email}</span>
+              </div>
+              <button className="usermenu__item" onClick={() => { setUserOpen(false); onLogout(); }}>
+                <IconArrowL size={17} /> Sair
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
@@ -145,7 +166,7 @@ function FilterPanel({ filters, setFilters, resultCount, onClose }) {
 }
 
 /* ---------- sidebar nav ---------- */
-function Sidebar({ open, view, setView, onAdd, counts, onClose }) {
+function Sidebar({ open, view, setView, onAdd, counts, onClose, cloud }) {
   const items = [
     ["discover", "Descobrir", IconCompass],
     ["collections", "Minha coleção", IconBookmark],
@@ -168,7 +189,7 @@ function Sidebar({ open, view, setView, onAdd, counts, onClose }) {
           <IconPlus size={18} /> Adicionar tendência
         </button>
         <div className="sidebar__foot">
-          <p className="mono sidebar__hint">{counts.total} tendências · salvas no seu navegador</p>
+          <p className="mono sidebar__hint">{counts.total} tendências · {cloud ? "salvas na nuvem" : "salvas no seu navegador"}</p>
         </div>
       </aside>
     </>
@@ -176,7 +197,7 @@ function Sidebar({ open, view, setView, onAdd, counts, onClose }) {
 }
 
 /* ---------- trend card ---------- */
-function TrendCard({ trend, saved, onOpen, onToggleSave, onDelete }) {
+function TrendCard({ trend, saved, canDelete = true, onOpen, onToggleSave, onDelete }) {
   return (
     <article className="card tcard" onClick={() => onOpen(trend)} tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter") onOpen(trend); }}>
@@ -189,9 +210,11 @@ function TrendCard({ trend, saved, onOpen, onToggleSave, onDelete }) {
         <button className={"save " + (saved ? "is-saved" : "")} onClick={(e) => { e.stopPropagation(); onToggleSave(trend.id); }} aria-label="Salvar">
           {saved ? <IconHeartFill size={18} /> : <IconHeart size={18} />}
         </button>
-        <button className="del" onClick={(e) => { e.stopPropagation(); onDelete(trend.id); }} aria-label="Excluir">
-          <IconTrash size={16} />
-        </button>
+        {canDelete && (
+          <button className="del" onClick={(e) => { e.stopPropagation(); onDelete(trend.id); }} aria-label="Excluir">
+            <IconTrash size={16} />
+          </button>
+        )}
       </div>
       <div className="tcard__body">
         <h3 className="tcard__title">{trend.title}</h3>
