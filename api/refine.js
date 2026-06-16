@@ -76,7 +76,8 @@ export default async function handler(req, res) {
 
         const data = await r.json();
         const choice = data && data.choices && data.choices[0] && data.choices[0].message;
-        const text = ((choice && (choice.content || choice.reasoning)) || "").trim();
+        // Usa SÓ a resposta final (content). Ignora "reasoning" (rascunho do modelo).
+        const text = ((choice && choice.content) || "").trim();
         if (text) {
           res.status(200).json({ text: text });
           return;
